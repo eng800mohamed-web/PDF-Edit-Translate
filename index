@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Translator & Editor</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --accent: #e74c3c;
+            --light: #f8f9fa;
+            --dark: #343a40;
+            --border: #dee2e6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7f9;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 25px;
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .card-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+        }
+        
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .upload-area:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary);
+        }
+        
+        .btn-secondary:hover {
+            background-color: #27ae60;
+        }
+        
+        .btn-accent {
+            background-color: var(--accent);
+        }
+        
+        .btn-accent:hover {
+            background-color: #c0392b;
+        }
+        
+        .language-selector {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .language-option {
+            padding: 10px 20px;
+            background-color: var(--light);
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+        
+        .language-option.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .language-option:first-child {
+            border-radius: 5px 0 0 5px;
+        }
+        
+        .language-option:last-child {
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .preview-area {
+            margin-top: 20px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .editor-tools {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .tool-btn {
+            padding: 8px 15px;
+            background-color: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .tool-btn:hover {
+            background-color: #e9ecef;
+        }
+        
+        .editor {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 300px;
+            outline: none;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .status.success {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #27ae60;
+        }
+        
+        .status.error {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: var(--dark);
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Document Translator & Editor</h1>
+            <p class="subtitle">Translate and edit PDF & Word documents between English and Arabic</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="card">
+                <h2 class="card-title">Document Translation</h2>
+                
+                <div class="upload-area" id="translation-upload">
+                    <div class="upload-icon">📄</div>
+                    <p>Click to upload a PDF or Word document</p>
+                    <p class="small">(Max file size: 10MB)</p>
+                    <input type="file" id="translation-file" class="file-input" accept=".pdf,.doc,.docx">
+                </div>
+                
+                <div class="language-selector">
+                    <div class="language-option active" data-direction="en-ar">English to Arabic</div>
+                    <div class="language-option" data-direction="ar-en">Arabic to English</div>
+                </div>
+                
+                <button class="btn" id="translate-btn">Translate Document</button>
+                
+                <div class="status" id="translation-status"></div>
+                
+                <div class="preview-area" id="translation-preview">
+                    <p>Translated content will appear here...</p>
+                </div>
+                
+                <button class="btn btn-secondary" id="download-translation" disabled>Download Translated Document</button>
+            </div>
+            
+            <div class="card">
+                <h2 class="card-title">PDF Editor</h2>
+                
+                <div class="upload-area" id="editor-upload">
+                    <div class="upload-icon">✏️</div>
+                    <p>Click to upload a PDF for editing</p>
+                    <p class="small">(Max file size: 10MB)</p>
+                    <input type="file" id="editor-file" class="file-input" accept=".pdf">
+                </div>
+                
+                <div class="editor-tools">
+                    <button class="tool-btn" data-tool="text">Add Text</button>
+                    <button class="tool-btn" data-tool="highlight">Highlight</button>
+                    <button class="tool-btn" data-tool="draw">Draw</button>
+                    <button class="tool-btn" data-tool="eraser">Eraser</button>
+                </div>
+                
+                <div class="editor" id="pdf-editor" contenteditable="true">
+                    <p>PDF content will appear here for editing...</p>
+                </div>
+                
+                <div class="status" id="editor-status"></div>
+                
+                <button class="btn btn-secondary" id="save-pdf" disabled>Save Changes</button>
+                <button class="btn" id="download-edited" disabled>Download Edited PDF</button>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Document Translator & Editor &copy; 2023 | Support: support@doctranslate.com</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        const translationUpload = document.getElementById('translation-upload');
+        const translationFile = document.getElementById('translation-file');
+        const translateBtn = document.getElementById('translate-btn');
+        const translationStatus = document.getElementById('translation-status');
+        const translationPreview = document.getElementById('translation-preview');
+        const downloadTranslation = document.getElementById('download-translation');
+        
+        const editorUpload = document.getElementById('editor-upload');
+        const editorFile = document.getElementById('editor-file');
+        const pdfEditor = document.getElementById('pdf-editor');
+        const editorStatus = document.getElementById('editor-status');
+        const savePdf = document.getElementById('save-pdf');
+        const downloadEdited = document.getElementById('download-edited');
+        
+        const languageOptions = document.querySelectorAll('.language-option');
+        const toolButtons = document.querySelectorAll('.tool-btn');
+        
+        // Variables
+        let currentTranslationDirection = 'en-ar';
+        let currentTool = null;
+        let translatedDocument = null;
+        let editedPdf = null;
+        
+        // Event Listeners
+        translationUpload.addEventListener('click', () => {
+            translationFile.click();
+        });
+        
+        translationFile.addEventListener('change', handleTranslationFileUpload);
+        
+        editorUpload.addEventListener('click', () => {
+            editorFile.click();
+        });
+        
+        editorFile.addEventListener('change', handleEditorFileUpload);
+        
+        translateBtn.addEventListener('click', translateDocument);
+        
+        downloadTranslation.addEventListener('click', downloadTranslatedFile);
+        
+        savePdf.addEventListener('click', savePdfChanges);
+        
+        downloadEdited.addEventListener('click', downloadEditedFile);
+        
+        languageOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                languageOptions.forEach(opt => opt.classList.remove('active'));
+                option.classList.add('active');
+                currentTranslationDirection = option.dataset.direction;
+            });
+        });
+        
+        toolButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                toolButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                currentTool = button.dataset.tool;
+            });
+        });
+        
+        // Functions
+        function handleTranslationFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+            if (!validTypes.includes(file.type)) {
+                showStatus(translationStatus, 'Please upload a PDF or Word document', 'error');
+                return;
+            }
+            
+            if (file.size > 10 * 1024 * 1024) {
+                showStatus(translationStatus, 'File size exceeds 10MB limit', 'error');
+                return;
+            }
+            
+            showStatus(translationStatus, `File uploaded: ${file.name}`, 'success');
+            downloadTranslation.disabled = false;
+            
+            // Simulate file reading (in a real app, you would use FileReader API)
+            simulateFileRead(file, translationPreview, 'translation');
+        }
+        
+        function handleEditorFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (file.type !== 'application/pdf') {
+                showStatus(editorStatus, 'Please upload a PDF document', 'error');
+                return;
+            }
+            
+            if (file.size > 10 * 1024 * 1024) {
+                showStatus(editorStatus, 'File size exceeds 10MB limit', 'error');
+                return;
+            }
+            
+            showStatus(editorStatus, `File uploaded: ${file.name}`, 'success');
+            savePdf.disabled = false;
+            downloadEdited.disabled = false;
+            
+            // Simulate file reading (in a real app, you would use PDF.js or similar)
+            simulateFileRead(file, pdfEditor, 'editor');
+        }
+        
+        function translateDocument() {
+            if (!translationFile.files[0]) {
+                showStatus(translationStatus, 'Please upload a document first', 'error');
+                return;
+            }
+            
+            showStatus(translationStatus, 'Translating document...', '');
+            
+            // Simulate translation process
+            setTimeout(() => {
+                const fromLang = currentTranslationDirection === 'en-ar' ? 'English' : 'Arabic';
+                const toLang = currentTranslationDirection === 'en-ar' ? 'Arabic' : 'English';
+                
+                // Simulate translated content
+                translationPreview.innerHTML = `
+                    <h3>Translated Document (${fromLang} to ${toLang})</h3>
+                    <p>This is a simulated translation of your document content. In a real application, this would be the actual translated text from the document.</p>
+                    <p>Translation direction: ${fromLang} → ${toLang}</p>
+                `;
+                
+                translatedDocument = true;
+                showStatus(translationStatus, 'Translation completed successfully!', 'success');
+            }, 2000);
+        }
+        
+        function downloadTranslatedFile() {
+            if (!translatedDocument) {
+                showStatus(translationStatus, 'No translated document available', 'error');
+                return;
+            }
+            
+            // Simulate download
+            showStatus(translationStatus, 'Downloading translated document...', 'success');
+            setTimeout(() => {
+                alert('In a real application, this would download the translated document.');
+            }, 1000);
+        }
+        
+        function savePdfChanges() {
+            if (!editorFile.files[0]) {
+                showStatus(editorStatus, 'Please upload a PDF first', 'error');
+                return;
+            }
+            
+            showStatus(editorStatus, 'Changes saved successfully!', 'success');
+            editedPdf = true;
+        }
+        
+        function downloadEditedFile() {
+            if (!editedPdf) {
+                showStatus(editorStatus, 'No edited PDF available', 'error');
+                return;
+            }
+            
+            // Simulate download
+            showStatus(editorStatus, 'Downloading edited PDF...', 'success');
+            setTimeout(() => {
+                alert('In a real application, this would download the edited PDF.');
+            }, 1000);
+        }
+        
+        function simulateFileRead(file, element, type) {
+            // Show loading state
+            element.innerHTML = '<p>Loading file content...</p>';
+            
+            // Simulate file processing
+            setTimeout(() => {
+                if (type === 'translation') {
+                    element.innerHTML = `
+                        <h3>File Preview: ${file.name}</h3>
+                        <p>This is a simulated preview of your document. In a real application, the actual content would be displayed here.</p>
+                        <p>File type: ${file.type}</p>
+                        <p>File size: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                    `;
+                } else {
+                    element.innerHTML = `
+                        <h3>PDF Content (Editable)</h3>
+                        <p>This is a simulated representation of your PDF content. In a real application, the actual PDF text would be displayed here for editing.</p>
+                        <p>You can click anywhere and start editing the text content.</p>
+                        <p>File: ${file.name}</p>
+                    `;
+                }
+            }, 1500);
+        }
+        
+        function showStatus(element, message, type) {
+            element.textContent = message;
+            element.className = 'status';
+            if (type) {
+                element.classList.add(type);
+            }
+        }
+    </script>
+</body>
+</html>
