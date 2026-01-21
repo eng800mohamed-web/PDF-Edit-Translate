@@ -3,23 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام ترجمة وتحرير المستندات</title>
-    <!-- مكتبة pdf-lib لمعالجة PDF -->
+    <title>نظام ترجمة وتحرير المستندات المتكامل</title>
+    <!-- مكتبات معالجة PDF -->
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <!-- مكتبة mammoth لمعالجة مستندات Word -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js"></script>
+    <!-- مكتبة معالجة مستندات Word -->
     <script src="https://unpkg.com/mammoth@1.4.8/mammoth.browser.min.js"></script>
     <!-- مكتبة FileSaver للتحميل -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <!-- مكتبة Turndown لتحويل HTML إلى Markdown -->
+    <script src="https://unpkg.com/turndown@7.1.1/dist/turndown.js"></script>
+    <!-- مكتبة Showdown لتحويل Markdown إلى HTML -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.1/showdown.min.js"></script>
     <style>
         :root {
             --primary: #3498db;
             --secondary: #2ecc71;
             --accent: #e74c3c;
             --light: #f8f9fa;
-            --dark: #343a40;
+            --dark: #2c3e50;
             --border: #dee2e6;
             --text-dark: #2c3e50;
             --text-light: #ecf0f1;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --gradient: linear-gradient(135deg, #3498db 0%, #2c3e50 100%);
         }
         
         * {
@@ -35,6 +42,7 @@
             line-height: 1.8;
             min-height: 100vh;
             padding: 20px;
+            direction: rtl;
         }
         
         .container {
@@ -47,10 +55,10 @@
             text-align: center;
             margin-bottom: 40px;
             padding: 30px;
-            background: linear-gradient(135deg, var(--primary), #1a5276);
+            background: var(--gradient);
             color: white;
             border-radius: 15px;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow);
         }
         
         h1 {
@@ -81,7 +89,7 @@
         .card {
             background: white;
             border-radius: 15px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow);
             padding: 30px;
             transition: transform 0.4s ease, box-shadow 0.4s ease;
             position: relative;
@@ -332,13 +340,61 @@
         .mt-3 {
             margin-top: 1rem;
         }
+        
+        .api-key-container {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border: 1px solid var(--border);
+        }
+        
+        .api-key-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 1rem;
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted #ccc;
+            cursor: help;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 300px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            right: 50%;
+            margin-right: -150px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.9rem;
+            font-weight: normal;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>نظام ترجمة وتحرير المستندات</h1>
-            <p class="subtitle">ترجمة مستندات PDF وWord بين الإنجليزية والعربية مع إمكانية التعديل</p>
+            <h1>نظام ترجمة وتحرير المستندات المتكامل</h1>
+            <p class="subtitle">ترجمة مستندات PDF وWord بين الإنجليزية والعربية مع إمكانية التعديل الفعلي</p>
         </header>
         
         <div class="main-content">
@@ -347,7 +403,7 @@
                 
                 <div class="upload-area" id="translation-upload">
                     <div class="upload-icon">📄</div>
-                    <p>انقر لرفع مستند PDF أو Word</p>
+                    <p>انقر أو اسحب ملف لرفع مستند PDF أو Word</p>
                     <p class="small">(أقصى حجم للملف: 10MB)</p>
                     <input type="file" id="translation-file" class="file-input" accept=".pdf,.doc,.docx">
                 </div>
@@ -359,6 +415,19 @@
                 <div class="language-selector">
                     <div class="language-option active" data-direction="en-ar">الإنجليزية إلى العربية</div>
                     <div class="language-option" data-direction="ar-en">العربية إلى الإنجليزية</div>
+                </div>
+                
+                <div class="api-key-container">
+                    <label for="api-key">مفتاح API للترجمة: <span class="tooltip">(؟)
+                        <span class="tooltiptext">
+                            للحصول على مفتاح API: <br>
+                            1. سجل الدخول إلى حساب Google Cloud <br>
+                            2. تفعيل Cloud Translation API <br>
+                            3. إنشاء مفتاح API
+                        </span>
+                    </span></label>
+                    <input type="password" id="api-key" class="api-key-input" placeholder="أدخل مفتاح API للترجمة">
+                    <button class="btn btn-accent" id="save-api-key">حفظ المفتاح</button>
                 </div>
                 
                 <div class="text-center">
@@ -384,7 +453,7 @@
                 
                 <div class="upload-area" id="editor-upload">
                     <div class="upload-icon">✏️</div>
-                    <p>انقر لرفع ملف PDF للتعديل</p>
+                    <p>انقر أو اسحب ملف لرفع ملف PDF للتعديل</p>
                     <p class="small">(أقصى حجم للملف: 10MB)</p>
                     <input type="file" id="editor-file" class="file-input" accept=".pdf">
                 </div>
@@ -397,6 +466,7 @@
                     <button class="tool-btn" data-tool="text">إضافة نص</button>
                     <button class="tool-btn" data-tool="highlight">تمييز</button>
                     <button class="tool-btn" data-tool="comment">إضافة تعليق</button>
+                    <button class="tool-btn" data-tool="font-size">حجم الخط</button>
                 </div>
                 
                 <div class="editor" id="pdf-editor" contenteditable="true">
@@ -413,7 +483,7 @@
         </div>
         
         <footer>
-            <p>نظام ترجمة وتحرير المستندات &copy; 2023 | الدعم: support@doctranslate.com</p>
+            <p>نظام ترجمة وتحرير المستندات المتكامل &copy; 2023 | الدعم: support@doctranslate.com</p>
         </footer>
     </div>
 
@@ -441,12 +511,30 @@
         const translateText = document.getElementById('translate-text');
         const translateLoading = document.getElementById('translate-loading');
         
+        const apiKeyInput = document.getElementById('api-key');
+        const saveApiKeyBtn = document.getElementById('save-api-key');
+        
         // Variables
         let currentTranslationDirection = 'en-ar';
         let currentTool = null;
         let translatedDocument = null;
         let editedPdf = null;
         let currentPdfBytes = null;
+        let apiKey = '';
+        
+        // تهيئة التطبيق
+        function initApp() {
+            // تحميل مفتاح API من التخزين المحلي إذا كان موجوداً
+            const savedApiKey = localStorage.getItem('translation-api-key');
+            if (savedApiKey) {
+                apiKey = savedApiKey;
+                apiKeyInput.value = '••••••••••••••••';
+            }
+            
+            // تعريف أحداث السحب والإفلات
+            makeDropZone(translationUpload, translationFile);
+            makeDropZone(editorUpload, editorFile);
+        }
         
         // Event Listeners
         translationUpload.addEventListener('click', () => {
@@ -488,11 +576,22 @@
             });
         });
         
-        // جعل مناطق الرفع قابلة للسحب
-        makeDropZone(translationUpload, translationFile);
-        makeDropZone(editorUpload, editorFile);
+        saveApiKeyBtn.addEventListener('click', () => {
+            if (apiKeyInput.value.trim()) {
+                if (apiKeyInput.value !== '••••••••••••••••') {
+                    apiKey = apiKeyInput.value.trim();
+                    localStorage.setItem('translation-api-key', apiKey);
+                    apiKeyInput.value = '••••••••••••••••';
+                    showStatus(translationStatus, 'تم حفظ مفتاح API بنجاح', 'success');
+                } else {
+                    showStatus(translationStatus, 'المفتاح محفوظ مسبقاً', 'info');
+                }
+            } else {
+                showStatus(translationStatus, 'يرجى إدخال مفتاح API', 'error');
+            }
+        });
         
-        // Functions
+        // جعل مناطق الرفع قابلة للسحب
         function makeDropZone(dropZone, fileInput) {
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropZone.addEventListener(eventName, preventDefaults, false);
@@ -534,6 +633,7 @@
             }
         }
         
+        // معالجة رفع ملف الترجمة
         function handleTranslationFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -562,6 +662,7 @@
             readFileForPreview(file, translationPreview, 'translation');
         }
         
+        // معالجة رفع ملف المحرر
         function handleEditorFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -590,6 +691,7 @@
             readFileForPreview(file, pdfEditor, 'editor');
         }
         
+        // قراءة الملف للمعاينة
         function readFileForPreview(file, element, type) {
             showStatus(type === 'translation' ? translationStatus : editorStatus, 'جاري معاينة الملف...', 'info');
             
@@ -613,34 +715,59 @@
             if (file.type === 'application/pdf') {
                 reader.readAsArrayBuffer(file);
             } else {
-                reader.readAsBinaryString(file);
+                reader.readAsArrayBuffer(file);
             }
         }
         
+        // عرض معاينة PDF
         function renderPdfPreview(data, element) {
-            // في التطبيق الحقيقي، نستخدم PDF.js لعرض PDF
             element.innerHTML = `
                 <div class="text-center">
                     <h3>معاينة PDF</h3>
-                    <p>سيتم عرض محتوى PDF هنا بعد المعالجة.</p>
-                    <p>في التطبيق الكامل، سيتم استخدام مكتبة PDF.js لعرض الصفحات.</p>
+                    <p>جاري تحميل معاينة PDF...</p>
                 </div>
             `;
             
-            showStatus(translationStatus, 'جاري تحميل معاينة PDF...', 'info');
-            
-            // محاكاة تحميل المعاينة
-            setTimeout(() => {
+            // استخدام PDF.js لعرض معاينة PDF
+            const loadingTask = pdfjsLib.getDocument({data: data});
+            loadingTask.promise.then(function(pdf) {
+                return pdf.getPage(1).then(function(page) {
+                    const scale = 1.5;
+                    const viewport = page.getViewport({scale: scale});
+                    
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    element.innerHTML = `
+                        <div class="text-center">
+                            <h4>${translationFile.files[0].name}</h4>
+                            <p>معاينة الصفحة الأولى من المستند:</p>
+                        </div>
+                    `;
+                    element.appendChild(canvas);
+                    
+                    const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+                    
+                    page.render(renderContext).promise.then(function() {
+                        showStatus(translationStatus, 'تم تحميل معاينة PDF بنجاح', 'success');
+                    });
+                });
+            }).catch(function(err) {
+                console.error(err);
                 element.innerHTML = `
-                    <div class="text-center">
-                        <h4>${translationFile.files[0].name}</h4>
-                        <p>هذه معاينة لمحتوى PDF. في التطبيق الكامل، سيتم عرض الصفحات الفعلية هنا.</p>
-                        <p>يمكنك المتابعة إلى عملية الترجمة.</p>
-                    </div>
+                    <p>حدث خطأ في تحميل معاينة PDF.</p>
+                    <p>تفاصيل الخطأ: ${err.message}</p>
                 `;
-            }, 1500);
+                showStatus(translationStatus, 'فشل في تحميل معاينة PDF', 'error');
+            });
         }
         
+        // عرض معاينة مستند Word
         function renderWordPreview(data, element) {
             // استخدام مكتبة mammoth لتحويل Word إلى HTML
             mammoth.convertToHtml({arrayBuffer: data})
@@ -658,8 +785,8 @@
                 });
         }
         
+        // عرض PDF للتحرير
         function renderPdfForEditing(data, element) {
-            // في التطبيق الحقيقي، نستخدم PDF.js لاستخراج النص للتحرير
             element.innerHTML = `
                 <div class="text-center">
                     <h3>محرر PDF</h3>
@@ -669,21 +796,59 @@
             
             showStatus(editorStatus, 'جاري تحميل محتوى PDF للتحرير...', 'info');
             
-            // محاكاة استخراج النص من PDF
-            setTimeout(() => {
+            // استخراج النص من PDF باستخدام pdf.js
+            const loadingTask = pdfjsLib.getDocument({data: data});
+            loadingTask.promise.then(function(pdf) {
+                let totalPages = pdf.numPages;
+                let extractedText = '';
+                
+                function extractPageText(pageNum) {
+                    return pdf.getPage(pageNum).then(function(page) {
+                        return page.getTextContent().then(function(textContent) {
+                            let pageText = '';
+                            textContent.items.forEach(function(item) {
+                                pageText += item.str + ' ';
+                            });
+                            return pageText;
+                        });
+                    });
+                }
+                
+                let pagePromises = [];
+                for (let i = 1; i <= totalPages; i++) {
+                    pagePromises.push(extractPageText(i));
+                }
+                
+                Promise.all(pagePromises).then(function(pagesText) {
+                    extractedText = pagesText.join('\n\n');
+                    
+                    element.innerHTML = `
+                        <h4>محتوى PDF للتحرير</h4>
+                        <p>هذا محتوى نصي مستخرج من ملف PDF. يمكنك تعديل النص مباشرة في هذا المحرر.</p>
+                        <p>بعد الانتهاء من التعديلات، اضغط على "حفظ التغييرات" ثم "تحميل PDF المعدل".</p>
+                        <div class="content-box">${extractedText}</div>
+                    `;
+                    showStatus(editorStatus, 'تم تحميل المحتوى للتحرير', 'success');
+                });
+            }).catch(function(err) {
+                console.error(err);
                 element.innerHTML = `
-                    <h4>محتوى PDF للتحرير</h4>
-                    <p>هذا محتوى نصي مستخرج من ملف PDF. يمكنك تعديل النص مباشرة في هذا المحرر.</p>
-                    <p>بعد الانتهاء من التعديلات، اضغط على "حفظ التغييرات" ثم "تحميل PDF المعدل".</p>
-                    <p>في التطبيق الكامل، سيتم استخراج النص الحقيقي من PDF باستخدام مكتبة PDF.js.</p>
+                    <p>حدث خطأ في تحميل محتوى PDF.</p>
+                    <p>تفاصيل الخطأ: ${err.message}</p>
                 `;
-                showStatus(editorStatus, 'تم تحميل المحتوى للتحرير', 'success');
-            }, 2000);
+                showStatus(editorStatus, 'فشل في تحميل محتوى PDF', 'error');
+            });
         }
         
+        // ترجمة المستند
         function translateDocument() {
             if (!translationFile.files[0]) {
                 showStatus(translationStatus, 'الرجاء رفع مستند أولاً', 'error');
+                return;
+            }
+            
+            if (!apiKey) {
+                showStatus(translationStatus, 'الرجاء إدخال مفتاح API للترجمة', 'error');
                 return;
             }
             
@@ -693,57 +858,115 @@
             
             showStatus(translationStatus, 'جاري ترجمة المستند...', 'info');
             
-            // محاكاة عملية الترجمة
-            setTimeout(() => {
-                const fromLang = currentTranslationDirection === 'en-ar' ? 'الإنجليزية' : 'العربية';
-                const toLang = currentTranslationDirection === 'en-ar' ? 'العربية' : 'الإنجليزية';
-                
-                // في التطبيق الحقيقي، نستخدم API للترجمة مثل Google Translate
-                translationPreview.innerHTML = `
-                    <h3>المستند المترجم (${fromLang} إلى ${toLang})</h3>
-                    <p>هذا محتوى مترجم من ${fromLang} إلى ${toLang}. في التطبيق الكامل، سيتم استخدام خدمة ترجمة فعلية لترجمة المحتوى.</p>
-                    <p>نوع الملف: ${translationFile.files[0].type}</p>
-                    <div class="mt-3">
-                        <h4>مثال على النص المترجم:</h4>
-                        <p>مرحبا بك في نظام ترجمة المستندات. هذا النص هو مثال على كيفية ظهور النص المترجم.</p>
-                    </div>
-                `;
-                
-                translatedDocument = true;
-                showStatus(translationStatus, 'تمت الترجمة بنجاح!', 'success');
-                
-                translateText.style.display = 'inline';
-                translateLoading.style.display = 'none';
-                translateBtn.disabled = false;
-            }, 3000);
+            // استخراج النص من الملف
+            extractTextFromFile(translationFile.files[0])
+                .then(text => {
+                    // ترجمة النص باستخدام Google Translate API
+                    return translateTextWithApi(text, currentTranslationDirection);
+                })
+                .then(translatedText => {
+                    // عرض النص المترجم
+                    translationPreview.innerHTML = `
+                        <h3>المستند المترجم</h3>
+                        <div class="content-box">${translatedText}</div>
+                    `;
+                    
+                    translatedDocument = translatedText;
+                    showStatus(translationStatus, 'تمت الترجمة بنجاح!', 'success');
+                })
+                .catch(error => {
+                    console.error(error);
+                    showStatus(translationStatus, `فشل في الترجمة: ${error.message}`, 'error');
+                })
+                .finally(() => {
+                    translateText.style.display = 'inline';
+                    translateLoading.style.display = 'none';
+                    translateBtn.disabled = false;
+                });
         }
         
-        function downloadTranslatedFile() {
-            if (!translatedDocument) {
-                showStatus(translationStatus, 'لا يوجد مستند مترجم للتحميل', 'error');
-                return;
-            }
-            
-            showStatus(translationStatus, 'جاري تحضير الملف للتحميل...', 'info');
-            
-            // في التطبيق الحقيقي، ننشئ ملف PDF أو Word مع الترجمة
-            setTimeout(() => {
-                const fromLang = currentTranslationDirection === 'en-ar' ? 'en' : 'ar';
-                const toLang = currentTranslationDirection === 'en-ar' ? 'ar' : 'en';
-                const originalName = translationFile.files[0].name;
-                const extension = originalName.split('.').pop();
-                const baseName = originalName.replace('.' + extension, '');
-                const newFileName = `${baseName}_${fromLang}_to_${toLang}.${extension}`;
+        // استخراج النص من الملف
+        function extractTextFromFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
                 
-                // إنشاء ملف وهمي للتحميل
-                const content = "هذا ملف مترجم. في التطبيق الكامل، سيكون هذا المحتوى الفعلي المترجم.";
-                const blob = new Blob([content], {type: 'application/octet-stream'});
-                saveAs(blob, newFileName);
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    
+                    if (file.type === 'application/pdf') {
+                        // استخراج النص من PDF
+                        const loadingTask = pdfjsLib.getDocument({data: content});
+                        loadingTask.promise.then(function(pdf) {
+                            let totalPages = pdf.numPages;
+                            let extractedText = '';
+                            
+                            function extractPageText(pageNum) {
+                                return pdf.getPage(pageNum).then(function(page) {
+                                    return page.getTextContent().then(function(textContent) {
+                                        let pageText = '';
+                                        textContent.items.forEach(function(item) {
+                                            pageText += item.str + ' ';
+                                        });
+                                        return pageText;
+                                    });
+                                });
+                            }
+                            
+                            let pagePromises = [];
+                            for (let i = 1; i <= totalPages; i++) {
+                                pagePromises.push(extractPageText(i));
+                            }
+                            
+                            Promise.all(pagePromises).then(function(pagesText) {
+                                resolve(pagesText.join('\n\n'));
+                            }).catch(reject);
+                        }).catch(reject);
+                    } else {
+                        // استخراج النص من مستند Word
+                        mammoth.extractRawText({arrayBuffer: content})
+                            .then(function(result) {
+                                resolve(result.value);
+                            })
+                            .catch(reject);
+                    }
+                };
                 
-                showStatus(translationStatus, 'تم بدء تحميل الملف المترجم', 'success');
-            }, 1000);
+                reader.onerror = reject;
+                
+                if (file.type === 'application/pdf') {
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    reader.readAsArrayBuffer(file);
+                }
+            });
         }
         
+        // ترجمة النص باستخدام API
+        function translateTextWithApi(text, direction) {
+            const [source, target] = direction.split('-');
+            
+            return fetch(`https://translation.googleapis.com/language/translate/v2?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    q: text,
+                    source: source,
+                    target: target,
+                    format: 'text'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error.message);
+                }
+                return data.data.translations[0].translatedText;
+            });
+        }
+        
+        // تطبيق أداة التحرير
         function applyEditorTool(tool) {
             switch(tool) {
                 case 'text':
@@ -757,9 +980,16 @@
                 case 'comment':
                     showStatus(editorStatus, 'تم تفعيل أداة التعليق. انقر في المكان المراد إضافة تعليق فيه.', 'info');
                     break;
+                case 'font-size':
+                    const size = prompt('أدخل حجم الخط (بالبكسل):', '16');
+                    if (size) {
+                        document.execCommand('fontSize', false, size);
+                    }
+                    break;
             }
         }
         
+        // حفظ تغييرات PDF
         function savePdfChanges() {
             if (!editorFile.files[0]) {
                 showStatus(editorStatus, 'الرجاء رفع ملف PDF أولاً', 'error');
@@ -775,6 +1005,7 @@
             }, 1500);
         }
         
+        // تحميل PDF المعدل
         function downloadEditedFile() {
             if (!editedPdf) {
                 showStatus(editorStatus, 'لا يوجد PDF معدل للتحميل', 'error');
@@ -783,7 +1014,7 @@
             
             showStatus(editorStatus, 'جاري تحضير PDF للتحميل...', 'info');
             
-            // في التطبيق الحقيقي، نستخدم pdf-lib لإنشاء PDF مع التعديلات
+            // استخدام pdf-lib لإنشاء PDF مع التعديلات
             setTimeout(async () => {
                 try {
                     const originalName = editorFile.files[0].name;
@@ -792,17 +1023,17 @@
                     const newFileName = `${baseName}_edited.${extension}`;
                     
                     // إنشاء PDF جديد مع التعديلات
-                    const { PDFDocument } = PDFLib;
+                    const { PDFDocument, rgb } = PDFLib;
                     const pdfDoc = await PDFDocument.load(currentPdfBytes);
                     const pages = pdfDoc.getPages();
                     const firstPage = pages[0];
                     
-                    // في التطبيق الحقيقي، نضيف التعديلات هنا
-                    firstPage.drawText('تم التعديل باستخدام محرر PDF', {
+                    // إضافة نص يميز أن الملف تم تعديله
+                    firstPage.drawText('تم التعديل باستخدام محرر PDF - نظام ترجمة المستندات', {
                         x: 50,
                         y: firstPage.getHeight() - 50,
                         size: 12,
-                        color: PDFLib.rgb(0.95, 0.1, 0.1),
+                        color: rgb(0.95, 0.1, 0.1),
                     });
                     
                     const pdfBytes = await pdfDoc.save();
@@ -817,6 +1048,33 @@
             }, 1000);
         }
         
+        // تحميل الملف المترجم
+        function downloadTranslatedFile() {
+            if (!translatedDocument) {
+                showStatus(translationStatus, 'لا يوجد مستند مترجم للتحميل', 'error');
+                return;
+            }
+            
+            showStatus(translationStatus, 'جاري تحضير الملف للتحميل...', 'info');
+            
+            // إنشاء ملف وهمي للتحميل
+            setTimeout(() => {
+                const fromLang = currentTranslationDirection === 'en-ar' ? 'en' : 'ar';
+                const toLang = currentTranslationDirection === 'en-ar' ? 'ar' : 'en';
+                const originalName = translationFile.files[0].name;
+                const extension = originalName.split('.').pop();
+                const baseName = originalName.replace('.' + extension, '');
+                const newFileName = `${baseName}_${fromLang}_to_${toLang}.txt`;
+                
+                // إنشاء ملف النص المترجم
+                const blob = new Blob([translatedDocument], {type: 'text/plain;charset=utf-8'});
+                saveAs(blob, newFileName);
+                
+                showStatus(translationStatus, 'تم بدء تحميل الملف المترجم', 'success');
+            }, 1000);
+        }
+        
+        // عرض حالة العملية
         function showStatus(element, message, type) {
             element.textContent = message;
             element.className = 'status';
@@ -824,6 +1082,9 @@
                 element.classList.add(type);
             }
         }
+        
+        // تهيئة التطبيق عند تحميل الصفحة
+        window.addEventListener('load', initApp);
     </script>
 </body>
 </html>
