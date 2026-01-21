@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Translator & Editor</title>
+    <title>نظام ترجمة وتحرير المستندات</title>
+    <!-- مكتبة pdf-lib لمعالجة PDF -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- مكتبة mammoth لمعالجة مستندات Word -->
+    <script src="https://unpkg.com/mammoth@1.4.8/mammoth.browser.min.js"></script>
+    <!-- مكتبة FileSaver للتحميل -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         :root {
             --primary: #3498db;
@@ -12,19 +18,23 @@
             --light: #f8f9fa;
             --dark: #343a40;
             --border: #dee2e6;
+            --text-dark: #2c3e50;
+            --text-light: #ecf0f1;
         }
         
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', 'Cairo', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         body {
-            background-color: #f5f7f9;
-            color: var(--dark);
-            line-height: 1.6;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text-dark);
+            line-height: 1.8;
+            min-height: 100vh;
+            padding: 20px;
         }
         
         .container {
@@ -35,31 +45,34 @@
         
         header {
             text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(135deg, var(--primary), #1a5276);
             color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.15);
         }
         
         h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            font-weight: 700;
         }
         
         .subtitle {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             opacity: 0.9;
+            margin-bottom: 10px;
         }
         
         .main-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 30px;
+            gap: 40px;
+            margin-top: 30px;
         }
         
-        @media (max-width: 768px) {
+        @media (max-width: 992px) {
             .main-content {
                 grid-template-columns: 1fr;
             }
@@ -67,42 +80,63 @@
         
         .card {
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            padding: 25px;
-            transition: transform 0.3s ease;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            padding: 30px;
+            transition: transform 0.4s ease, box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--secondary), var(--primary));
         }
         
         .card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-8px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
         }
         
         .card-title {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
+            font-size: 1.8rem;
+            margin-bottom: 25px;
             color: var(--primary);
             border-bottom: 2px solid var(--border);
-            padding-bottom: 10px;
+            padding-bottom: 15px;
+            font-weight: 600;
         }
         
         .upload-area {
-            border: 2px dashed var(--border);
-            border-radius: 8px;
-            padding: 30px;
+            border: 3px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px 20px;
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        
-        .upload-area:hover {
+            transition: all 0.3s;
             background-color: rgba(52, 152, 219, 0.05);
         }
         
+        .upload-area:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+            border-color: var(--primary);
+        }
+        
+        .upload-area.drag-over {
+            background-color: rgba(46, 204, 113, 0.2);
+            border-color: var(--secondary);
+        }
+        
         .upload-icon {
-            font-size: 3rem;
+            font-size: 4rem;
             color: var(--primary);
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         
         .file-input {
@@ -111,190 +145,275 @@
         
         .btn {
             display: inline-block;
-            padding: 10px 20px;
-            background-color: var(--primary);
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--primary), #2980b9);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s;
-            margin: 5px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            margin: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
         
         .btn:hover {
-            background-color: #2980b9;
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .btn:active {
+            transform: translateY(1px);
         }
         
         .btn-secondary {
-            background-color: var(--secondary);
-        }
-        
-        .btn-secondary:hover {
-            background-color: #27ae60;
+            background: linear-gradient(135deg, var(--secondary), #27ae60);
         }
         
         .btn-accent {
-            background-color: var(--accent);
+            background: linear-gradient(135deg, var(--accent), #c0392b);
         }
         
-        .btn-accent:hover {
-            background-color: #c0392b;
+        .btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         
         .language-selector {
             display: flex;
             justify-content: center;
-            margin: 20px 0;
+            margin: 25px 0;
+            background-color: var(--light);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         
         .language-option {
-            padding: 10px 20px;
+            padding: 15px 30px;
             background-color: var(--light);
-            border: 1px solid var(--border);
             cursor: pointer;
+            flex: 1;
+            text-align: center;
+            transition: all 0.3s;
+            font-weight: 600;
         }
         
         .language-option.active {
-            background-color: var(--primary);
+            background: linear-gradient(135deg, var(--primary), #2980b9);
             color: white;
         }
         
-        .language-option:first-child {
-            border-radius: 5px 0 0 5px;
-        }
-        
-        .language-option:last-child {
-            border-radius: 0 5px 5px 0;
-        }
-        
         .preview-area {
-            margin-top: 20px;
+            margin-top: 25px;
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 15px;
-            min-height: 300px;
-            max-height: 500px;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 280px;
+            max-height: 400px;
             overflow-y: auto;
+            background-color: #fafafa;
+            line-height: 1.6;
         }
         
         .editor-tools {
             display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 12px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
+            justify-content: center;
         }
         
         .tool-btn {
-            padding: 8px 15px;
+            padding: 12px 20px;
             background-color: var(--light);
             border: 1px solid var(--border);
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
         }
         
         .tool-btn:hover {
             background-color: #e9ecef;
         }
         
+        .tool-btn.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
         .editor {
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 15px;
-            min-height: 300px;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 280px;
             outline: none;
+            background-color: #fafafa;
+            line-height: 1.6;
+            overflow-y: auto;
         }
         
         .status {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 5px;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
             text-align: center;
+            font-weight: 500;
         }
         
         .status.success {
             background-color: rgba(46, 204, 113, 0.2);
             color: #27ae60;
+            border: 1px solid #27ae60;
         }
         
         .status.error {
             background-color: rgba(231, 76, 60, 0.2);
             color: #c0392b;
+            border: 1px solid #c0392b;
+        }
+        
+        .status.info {
+            background-color: rgba(52, 152, 219, 0.2);
+            color: #2980b9;
+            border: 1px solid #2980b9;
+        }
+        
+        .file-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-right: 4px solid var(--primary);
         }
         
         footer {
             text-align: center;
-            margin-top: 50px;
-            padding: 20px;
+            margin-top: 60px;
+            padding: 30px;
             color: var(--dark);
-            opacity: 0.7;
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .mb-3 {
+            margin-bottom: 1rem;
+        }
+        
+        .mt-3 {
+            margin-top: 1rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Document Translator & Editor</h1>
-            <p class="subtitle">Translate and edit PDF & Word documents between English and Arabic</p>
+            <h1>نظام ترجمة وتحرير المستندات</h1>
+            <p class="subtitle">ترجمة مستندات PDF وWord بين الإنجليزية والعربية مع إمكانية التعديل</p>
         </header>
         
         <div class="main-content">
             <div class="card">
-                <h2 class="card-title">Document Translation</h2>
+                <h2 class="card-title">ترجمة المستندات</h2>
                 
                 <div class="upload-area" id="translation-upload">
                     <div class="upload-icon">📄</div>
-                    <p>Click to upload a PDF or Word document</p>
-                    <p class="small">(Max file size: 10MB)</p>
+                    <p>انقر لرفع مستند PDF أو Word</p>
+                    <p class="small">(أقصى حجم للملف: 10MB)</p>
                     <input type="file" id="translation-file" class="file-input" accept=".pdf,.doc,.docx">
                 </div>
                 
-                <div class="language-selector">
-                    <div class="language-option active" data-direction="en-ar">English to Arabic</div>
-                    <div class="language-option" data-direction="ar-en">Arabic to English</div>
+                <div class="file-info" id="translation-file-info">
+                    <p>لم يتم اختيار ملف بعد</p>
                 </div>
                 
-                <button class="btn" id="translate-btn">Translate Document</button>
+                <div class="language-selector">
+                    <div class="language-option active" data-direction="en-ar">الإنجليزية إلى العربية</div>
+                    <div class="language-option" data-direction="ar-en">العربية إلى الإنجليزية</div>
+                </div>
+                
+                <div class="text-center">
+                    <button class="btn" id="translate-btn">
+                        <span id="translate-text">ترجمة المستند</span>
+                        <span id="translate-loading" class="loading" style="display: none;"></span>
+                    </button>
+                </div>
                 
                 <div class="status" id="translation-status"></div>
                 
                 <div class="preview-area" id="translation-preview">
-                    <p>Translated content will appear here...</p>
+                    <p class="text-center">المحتوى المترجم سيظهر هنا...</p>
                 </div>
                 
-                <button class="btn btn-secondary" id="download-translation" disabled>Download Translated Document</button>
+                <div class="text-center">
+                    <button class="btn btn-secondary" id="download-translation" disabled>تحميل المستند المترجم</button>
+                </div>
             </div>
             
             <div class="card">
-                <h2 class="card-title">PDF Editor</h2>
+                <h2 class="card-title">محرر PDF</h2>
                 
                 <div class="upload-area" id="editor-upload">
                     <div class="upload-icon">✏️</div>
-                    <p>Click to upload a PDF for editing</p>
-                    <p class="small">(Max file size: 10MB)</p>
+                    <p>انقر لرفع ملف PDF للتعديل</p>
+                    <p class="small">(أقصى حجم للملف: 10MB)</p>
                     <input type="file" id="editor-file" class="file-input" accept=".pdf">
                 </div>
                 
+                <div class="file-info" id="editor-file-info">
+                    <p>لم يتم اختيار ملف بعد</p>
+                </div>
+                
                 <div class="editor-tools">
-                    <button class="tool-btn" data-tool="text">Add Text</button>
-                    <button class="tool-btn" data-tool="highlight">Highlight</button>
-                    <button class="tool-btn" data-tool="draw">Draw</button>
-                    <button class="tool-btn" data-tool="eraser">Eraser</button>
+                    <button class="tool-btn" data-tool="text">إضافة نص</button>
+                    <button class="tool-btn" data-tool="highlight">تمييز</button>
+                    <button class="tool-btn" data-tool="comment">إضافة تعليق</button>
                 </div>
                 
                 <div class="editor" id="pdf-editor" contenteditable="true">
-                    <p>PDF content will appear here for editing...</p>
+                    <p class="text-center">محتويات PDF ستظهر هنا للتحرير...</p>
                 </div>
                 
                 <div class="status" id="editor-status"></div>
                 
-                <button class="btn btn-secondary" id="save-pdf" disabled>Save Changes</button>
-                <button class="btn" id="download-edited" disabled>Download Edited PDF</button>
+                <div class="text-center">
+                    <button class="btn btn-secondary" id="save-pdf" disabled>حفظ التغييرات</button>
+                    <button class="btn" id="download-edited" disabled>تحميل PDF المعدل</button>
+                </div>
             </div>
         </div>
         
         <footer>
-            <p>Document Translator & Editor &copy; 2023 | Support: support@doctranslate.com</p>
+            <p>نظام ترجمة وتحرير المستندات &copy; 2023 | الدعم: support@doctranslate.com</p>
         </footer>
     </div>
 
@@ -306,6 +425,7 @@
         const translationStatus = document.getElementById('translation-status');
         const translationPreview = document.getElementById('translation-preview');
         const downloadTranslation = document.getElementById('download-translation');
+        const translationFileInfo = document.getElementById('translation-file-info');
         
         const editorUpload = document.getElementById('editor-upload');
         const editorFile = document.getElementById('editor-file');
@@ -313,15 +433,20 @@
         const editorStatus = document.getElementById('editor-status');
         const savePdf = document.getElementById('save-pdf');
         const downloadEdited = document.getElementById('download-edited');
+        const editorFileInfo = document.getElementById('editor-file-info');
         
         const languageOptions = document.querySelectorAll('.language-option');
         const toolButtons = document.querySelectorAll('.tool-btn');
+        
+        const translateText = document.getElementById('translate-text');
+        const translateLoading = document.getElementById('translate-loading');
         
         // Variables
         let currentTranslationDirection = 'en-ar';
         let currentTool = null;
         let translatedDocument = null;
         let editedPdf = null;
+        let currentPdfBytes = null;
         
         // Event Listeners
         translationUpload.addEventListener('click', () => {
@@ -357,30 +482,84 @@
                 toolButtons.forEach(btn => btn.classList.remove('active'));
                 button.classList.add('active');
                 currentTool = button.dataset.tool;
+                
+                // تطبيق الأداة المحددة
+                applyEditorTool(currentTool);
             });
         });
         
+        // جعل مناطق الرفع قابلة للسحب
+        makeDropZone(translationUpload, translationFile);
+        makeDropZone(editorUpload, editorFile);
+        
         // Functions
+        function makeDropZone(dropZone, fileInput) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+            
+            function highlight() {
+                dropZone.classList.add('drag-over');
+            }
+            
+            function unhighlight() {
+                dropZone.classList.remove('drag-over');
+            }
+            
+            dropZone.addEventListener('drop', handleDrop, false);
+            
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                fileInput.files = files;
+                
+                if (fileInput.id === 'translation-file') {
+                    handleTranslationFileUpload({target: fileInput});
+                } else {
+                    handleEditorFileUpload({target: fileInput});
+                }
+            }
+        }
+        
         function handleTranslationFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
             
             const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
             if (!validTypes.includes(file.type)) {
-                showStatus(translationStatus, 'Please upload a PDF or Word document', 'error');
+                showStatus(translationStatus, 'الرجاء رفع ملف PDF أو Word', 'error');
                 return;
             }
             
             if (file.size > 10 * 1024 * 1024) {
-                showStatus(translationStatus, 'File size exceeds 10MB limit', 'error');
+                showStatus(translationStatus, 'حجم الملف يتجاوز الحد المسموح (10MB)', 'error');
                 return;
             }
             
-            showStatus(translationStatus, `File uploaded: ${file.name}`, 'success');
+            translationFileInfo.innerHTML = `
+                <p><strong>اسم الملف:</strong> ${file.name}</p>
+                <p><strong>النوع:</strong> ${file.type}</p>
+                <p><strong>الحجم:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            `;
+            
+            showStatus(translationStatus, `تم رفع الملف: ${file.name}`, 'success');
             downloadTranslation.disabled = false;
             
-            // Simulate file reading (in a real app, you would use FileReader API)
-            simulateFileRead(file, translationPreview, 'translation');
+            // قراءة ومعاينة الملف
+            readFileForPreview(file, translationPreview, 'translation');
         }
         
         function handleEditorFileUpload(event) {
@@ -388,106 +567,254 @@
             if (!file) return;
             
             if (file.type !== 'application/pdf') {
-                showStatus(editorStatus, 'Please upload a PDF document', 'error');
+                showStatus(editorStatus, 'الرجاء رفع ملف PDF', 'error');
                 return;
             }
             
             if (file.size > 10 * 1024 * 1024) {
-                showStatus(editorStatus, 'File size exceeds 10MB limit', 'error');
+                showStatus(editorStatus, 'حجم الملف يتجاوز الحد المسموح (10MB)', 'error');
                 return;
             }
             
-            showStatus(editorStatus, `File uploaded: ${file.name}`, 'success');
+            editorFileInfo.innerHTML = `
+                <p><strong>اسم الملف:</strong> ${file.name}</p>
+                <p><strong>النوع:</strong> ${file.type}</p>
+                <p><strong>الحجم:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+            `;
+            
+            showStatus(editorStatus, `تم رفع الملف: ${file.name}`, 'success');
             savePdf.disabled = false;
             downloadEdited.disabled = false;
             
-            // Simulate file reading (in a real app, you would use PDF.js or similar)
-            simulateFileRead(file, pdfEditor, 'editor');
+            // قراءة ومعاينة الملف
+            readFileForPreview(file, pdfEditor, 'editor');
+        }
+        
+        function readFileForPreview(file, element, type) {
+            showStatus(type === 'translation' ? translationStatus : editorStatus, 'جاري معاينة الملف...', 'info');
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                if (type === 'translation') {
+                    if (file.type === 'application/pdf') {
+                        renderPdfPreview(content, element);
+                    } else {
+                        renderWordPreview(content, element);
+                    }
+                } else {
+                    renderPdfForEditing(content, element);
+                    currentPdfBytes = content;
+                }
+            };
+            
+            if (file.type === 'application/pdf') {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+        
+        function renderPdfPreview(data, element) {
+            // في التطبيق الحقيقي، نستخدم PDF.js لعرض PDF
+            element.innerHTML = `
+                <div class="text-center">
+                    <h3>معاينة PDF</h3>
+                    <p>سيتم عرض محتوى PDF هنا بعد المعالجة.</p>
+                    <p>في التطبيق الكامل، سيتم استخدام مكتبة PDF.js لعرض الصفحات.</p>
+                </div>
+            `;
+            
+            showStatus(translationStatus, 'جاري تحميل معاينة PDF...', 'info');
+            
+            // محاكاة تحميل المعاينة
+            setTimeout(() => {
+                element.innerHTML = `
+                    <div class="text-center">
+                        <h4>${translationFile.files[0].name}</h4>
+                        <p>هذه معاينة لمحتوى PDF. في التطبيق الكامل، سيتم عرض الصفحات الفعلية هنا.</p>
+                        <p>يمكنك المتابعة إلى عملية الترجمة.</p>
+                    </div>
+                `;
+            }, 1500);
+        }
+        
+        function renderWordPreview(data, element) {
+            // استخدام مكتبة mammoth لتحويل Word إلى HTML
+            mammoth.convertToHtml({arrayBuffer: data})
+                .then(function(result) {
+                    element.innerHTML = result.value;
+                    showStatus(translationStatus, 'تم تحميل مستند Word بنجاح', 'success');
+                })
+                .catch(function(err) {
+                    console.error(err);
+                    element.innerHTML = `
+                        <p>حدث خطأ في تحميل مستند Word.</p>
+                        <p>تفاصيل الخطأ: ${err.message}</p>
+                    `;
+                    showStatus(translationStatus, 'فشل في تحميل مستند Word', 'error');
+                });
+        }
+        
+        function renderPdfForEditing(data, element) {
+            // في التطبيق الحقيقي، نستخدم PDF.js لاستخراج النص للتحرير
+            element.innerHTML = `
+                <div class="text-center">
+                    <h3>محرر PDF</h3>
+                    <p>جاري تحميل محتوى PDF للتحرير...</p>
+                </div>
+            `;
+            
+            showStatus(editorStatus, 'جاري تحميل محتوى PDF للتحرير...', 'info');
+            
+            // محاكاة استخراج النص من PDF
+            setTimeout(() => {
+                element.innerHTML = `
+                    <h4>محتوى PDF للتحرير</h4>
+                    <p>هذا محتوى نصي مستخرج من ملف PDF. يمكنك تعديل النص مباشرة في هذا المحرر.</p>
+                    <p>بعد الانتهاء من التعديلات، اضغط على "حفظ التغييرات" ثم "تحميل PDF المعدل".</p>
+                    <p>في التطبيق الكامل، سيتم استخراج النص الحقيقي من PDF باستخدام مكتبة PDF.js.</p>
+                `;
+                showStatus(editorStatus, 'تم تحميل المحتوى للتحرير', 'success');
+            }, 2000);
         }
         
         function translateDocument() {
             if (!translationFile.files[0]) {
-                showStatus(translationStatus, 'Please upload a document first', 'error');
+                showStatus(translationStatus, 'الرجاء رفع مستند أولاً', 'error');
                 return;
             }
             
-            showStatus(translationStatus, 'Translating document...', '');
+            translateText.style.display = 'none';
+            translateLoading.style.display = 'inline-block';
+            translateBtn.disabled = true;
             
-            // Simulate translation process
+            showStatus(translationStatus, 'جاري ترجمة المستند...', 'info');
+            
+            // محاكاة عملية الترجمة
             setTimeout(() => {
-                const fromLang = currentTranslationDirection === 'en-ar' ? 'English' : 'Arabic';
-                const toLang = currentTranslationDirection === 'en-ar' ? 'Arabic' : 'English';
+                const fromLang = currentTranslationDirection === 'en-ar' ? 'الإنجليزية' : 'العربية';
+                const toLang = currentTranslationDirection === 'en-ar' ? 'العربية' : 'الإنجليزية';
                 
-                // Simulate translated content
+                // في التطبيق الحقيقي، نستخدم API للترجمة مثل Google Translate
                 translationPreview.innerHTML = `
-                    <h3>Translated Document (${fromLang} to ${toLang})</h3>
-                    <p>This is a simulated translation of your document content. In a real application, this would be the actual translated text from the document.</p>
-                    <p>Translation direction: ${fromLang} → ${toLang}</p>
+                    <h3>المستند المترجم (${fromLang} إلى ${toLang})</h3>
+                    <p>هذا محتوى مترجم من ${fromLang} إلى ${toLang}. في التطبيق الكامل، سيتم استخدام خدمة ترجمة فعلية لترجمة المحتوى.</p>
+                    <p>نوع الملف: ${translationFile.files[0].type}</p>
+                    <div class="mt-3">
+                        <h4>مثال على النص المترجم:</h4>
+                        <p>مرحبا بك في نظام ترجمة المستندات. هذا النص هو مثال على كيفية ظهور النص المترجم.</p>
+                    </div>
                 `;
                 
                 translatedDocument = true;
-                showStatus(translationStatus, 'Translation completed successfully!', 'success');
-            }, 2000);
+                showStatus(translationStatus, 'تمت الترجمة بنجاح!', 'success');
+                
+                translateText.style.display = 'inline';
+                translateLoading.style.display = 'none';
+                translateBtn.disabled = false;
+            }, 3000);
         }
         
         function downloadTranslatedFile() {
             if (!translatedDocument) {
-                showStatus(translationStatus, 'No translated document available', 'error');
+                showStatus(translationStatus, 'لا يوجد مستند مترجم للتحميل', 'error');
                 return;
             }
             
-            // Simulate download
-            showStatus(translationStatus, 'Downloading translated document...', 'success');
+            showStatus(translationStatus, 'جاري تحضير الملف للتحميل...', 'info');
+            
+            // في التطبيق الحقيقي، ننشئ ملف PDF أو Word مع الترجمة
             setTimeout(() => {
-                alert('In a real application, this would download the translated document.');
+                const fromLang = currentTranslationDirection === 'en-ar' ? 'en' : 'ar';
+                const toLang = currentTranslationDirection === 'en-ar' ? 'ar' : 'en';
+                const originalName = translationFile.files[0].name;
+                const extension = originalName.split('.').pop();
+                const baseName = originalName.replace('.' + extension, '');
+                const newFileName = `${baseName}_${fromLang}_to_${toLang}.${extension}`;
+                
+                // إنشاء ملف وهمي للتحميل
+                const content = "هذا ملف مترجم. في التطبيق الكامل، سيكون هذا المحتوى الفعلي المترجم.";
+                const blob = new Blob([content], {type: 'application/octet-stream'});
+                saveAs(blob, newFileName);
+                
+                showStatus(translationStatus, 'تم بدء تحميل الملف المترجم', 'success');
             }, 1000);
+        }
+        
+        function applyEditorTool(tool) {
+            switch(tool) {
+                case 'text':
+                    showStatus(editorStatus, 'تم تفعيل أداة إضافة النص. انقر في المكان المراد إضافة النص فيه.', 'info');
+                    break;
+                case 'highlight':
+                    showStatus(editorStatus, 'تم تفعيل أداة التمييز. حدد النص لتمييزه.', 'info');
+                    document.execCommand('styleWithCSS', false, true);
+                    document.execCommand('hiliteColor', false, '#ffeb3b');
+                    break;
+                case 'comment':
+                    showStatus(editorStatus, 'تم تفعيل أداة التعليق. انقر في المكان المراد إضافة تعليق فيه.', 'info');
+                    break;
+            }
         }
         
         function savePdfChanges() {
             if (!editorFile.files[0]) {
-                showStatus(editorStatus, 'Please upload a PDF first', 'error');
+                showStatus(editorStatus, 'الرجاء رفع ملف PDF أولاً', 'error');
                 return;
             }
             
-            showStatus(editorStatus, 'Changes saved successfully!', 'success');
-            editedPdf = true;
+            showStatus(editorStatus, 'جاري حفظ التغييرات...', 'info');
+            
+            // في التطبيق الحقيقي، ندمج التغييرات في PDF
+            setTimeout(() => {
+                showStatus(editorStatus, 'تم حفظ التغييرات بنجاح!', 'success');
+                editedPdf = true;
+            }, 1500);
         }
         
         function downloadEditedFile() {
             if (!editedPdf) {
-                showStatus(editorStatus, 'No edited PDF available', 'error');
+                showStatus(editorStatus, 'لا يوجد PDF معدل للتحميل', 'error');
                 return;
             }
             
-            // Simulate download
-            showStatus(editorStatus, 'Downloading edited PDF...', 'success');
-            setTimeout(() => {
-                alert('In a real application, this would download the edited PDF.');
-            }, 1000);
-        }
-        
-        function simulateFileRead(file, element, type) {
-            // Show loading state
-            element.innerHTML = '<p>Loading file content...</p>';
+            showStatus(editorStatus, 'جاري تحضير PDF للتحميل...', 'info');
             
-            // Simulate file processing
-            setTimeout(() => {
-                if (type === 'translation') {
-                    element.innerHTML = `
-                        <h3>File Preview: ${file.name}</h3>
-                        <p>This is a simulated preview of your document. In a real application, the actual content would be displayed here.</p>
-                        <p>File type: ${file.type}</p>
-                        <p>File size: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                    `;
-                } else {
-                    element.innerHTML = `
-                        <h3>PDF Content (Editable)</h3>
-                        <p>This is a simulated representation of your PDF content. In a real application, the actual PDF text would be displayed here for editing.</p>
-                        <p>You can click anywhere and start editing the text content.</p>
-                        <p>File: ${file.name}</p>
-                    `;
+            // في التطبيق الحقيقي، نستخدم pdf-lib لإنشاء PDF مع التعديلات
+            setTimeout(async () => {
+                try {
+                    const originalName = editorFile.files[0].name;
+                    const extension = originalName.split('.').pop();
+                    const baseName = originalName.replace('.' + extension, '');
+                    const newFileName = `${baseName}_edited.${extension}`;
+                    
+                    // إنشاء PDF جديد مع التعديلات
+                    const { PDFDocument } = PDFLib;
+                    const pdfDoc = await PDFDocument.load(currentPdfBytes);
+                    const pages = pdfDoc.getPages();
+                    const firstPage = pages[0];
+                    
+                    // في التطبيق الحقيقي، نضيف التعديلات هنا
+                    firstPage.drawText('تم التعديل باستخدام محرر PDF', {
+                        x: 50,
+                        y: firstPage.getHeight() - 50,
+                        size: 12,
+                        color: PDFLib.rgb(0.95, 0.1, 0.1),
+                    });
+                    
+                    const pdfBytes = await pdfDoc.save();
+                    const blob = new Blob([pdfBytes.buffer], {type: 'application/pdf'});
+                    saveAs(blob, newFileName);
+                    
+                    showStatus(editorStatus, 'تم بدء تحميل PDF المعدل', 'success');
+                } catch (err) {
+                    console.error(err);
+                    showStatus(editorStatus, 'حدث خطأ أثناء إنشاء PDF: ' + err.message, 'error');
                 }
-            }, 1500);
+            }, 1000);
         }
         
         function showStatus(element, message, type) {
